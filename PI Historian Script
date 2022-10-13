@@ -1,0 +1,118 @@
+Sub FileManipulation()
+
+Dim FileName, FolderPath As String
+Dim wb As Workbook
+Dim data, data2 As Worksheet
+Dim LastRow1, LastRow2, LastRow2i, A, dataCount, data2Count, Ctotal, x, SD, i, Ppk1, P1, P2, Ppk2_Numerator, LastBRow As Long
+'Dim wb, wb1 As Workbook
+Dim lastOpenARow, lastOpenBRow, lastOpenCRow As Long
+
+FolderPath = "C:\Users\Username\Desktop\\"
+FileName = Dir(FolderPath & "*csv.")
+Do While FileName <> ""
+    Set wb = Workbooks.Open(FolderPath & FileName)
+    PIScript wb
+   
+    Application.DisplayAlerts = False
+    ThisWorkbook.Saved = True
+    wb.Close SaveChanges:=False
+    FileName = Dir()
+               
+Loop
+
+End Sub
+
+
+Sub PIScript(wb As Workbook)
+    With wb
+   
+'PIScript starts here
+
+Workbooks("PI script").Sheets(1).UsedRange.ClearContents
+
+Application.DisplayAlerts = False
+For Each Sheet In ActiveWorkbook.Worksheets
+    If Sheet.Name = "Edit Sheet" Then
+        Sheet.Delete
+    End If
+Next Sheet
+Application.DisplayAlerts = True
+
+Set ws1 = ThisWorkbook.Sheets(1)
+Sheets.Add.Name = "Edit Sheet"
+Set ws1 = ActiveWorkbook.Sheets(2)
+Set ws2 = ActiveWorkbook.Sheets(1)
+
+ws1.Range("A1").CurrentRegion.Copy ws2.Range("A1") 'copy and paste from one worksheet to another
+
+ws2.Select
+ws2.Columns("A:C").AutoFit
+LastRow2i = ws2.Range("A" & Rows.Count).End(xlUp).Row
+ws2.Range("A" & LastRow2i - 4 & ":" & "A" & LastRow2i).EntireRow.Delete 'delete last 5 rows from data
+
+LastRow1 = ws1.Range("A" & Rows.Count).End(xlUp).Row
+LastRow2 = ws2.Range("A" & Rows.Count).End(xlUp).Row
+
+i = 2
+While ws2.Range("C" & i).Value <> "fill_weight_dose_opt_1" 'delete all rows before first fill_weight_dose_opt_1 row0
+    ws2.Rows(i).Delete
+Wend
+
+Finalrows = ws2.Range("A" & Rows.Count).End(xlUp).Row
+
+LastBRow = ws2.Range("B" & Rows.Count).End(xlUp).Row
+For i = LastBRow To 1
+    If ws2.Range("B" & i).Value = 0 Then 'taking into account all possibilites for 0s in the data
+    ws2.Rows(i).Delete
+    End If
+Next i
+
+N = ws2.Range("A" & Rows.Count).End(xlUp).Row 'Counts the toal number of data points
+Batch_Num = ws2.Range("D2").Value             'Batch Number of lot
+
+
+'MsgBox ("The document originally started with " & LastRow1 & " rows. " & LastRow1 - Finalrows & _
+" rows were deleted: " & LastRow1 - LastRow2 & " from the end of the data and " & LastRow2 - Finalrows _
+& " from the beginning of the data. The final spreadsheet has " & Finalrows & " rows.")
+
+
+x = Application.WorksheetFunction.Average(Range("B:B"))
+SD = Application.WorksheetFunction.StDev(Range("B:B"))
+
+UL = Range("T2").Value
+LL = Range("X2").Value
+
+Ppk1_Numerator = Application.WorksheetFunction.Min(UL - x, x - LL)
+Ppk1 = Ppk1_Numerator / (3 * SD)
+
+P_x = Application.WorksheetFunction.Percentile(Range("B:B"), 0.5)
+P_LL = Application.WorksheetFunction.Percentile(Range("B:B"), 0.00135)
+P_UL = Application.WorksheetFunction.Percentile(Range("B:B"), 0.99865)
+
+P1 = ((P_x - LL) / (P_x - P_LL))
+P2 = ((UL - P_x) / (P_UL - P_x))
+
+Ppk2 = Application.WorksheetFunction.Min(P1, P2)
+
+'PIScript ends here
+
+    End With
+   
+Workbooks("PI script").Sheets(1).Range("A1").Value = "Batch Number"
+Workbooks("PI script").Sheets(1).Range("B1").Value = "N (total data points)"
+Workbooks("PI script").Sheets(1).Range("C1").Value = "Ppk"
+Workbooks("PI script").Sheets(1).Columns("A:C").AutoFit
+Workbooks("PI script").Sheets(1).Range("A1:C1").Font.Bold = True
+Workbooks("PI script").Sheets(1).Columns("A:C").HorizontalAlignment = xlCenter
+
+With Workbooks("PI script").Sheets(1)
+        lastOpenARow = .Range("A" & .Rows.Count).End(xlUp).Row + 1 'Batch column
+        lastOpenBRow = .Range("B" & .Rows.Count).End(xlUp).Row + 1 'N column
+        lastOpenCRow = .Range("C" & .Rows.Count).End(xlUp).Row + 1 'Ppk column
+End With
+
+Workbooks("PI script").Sheets(1).Range("A" & lastOpenARow).Value = Batch_Num
+Workbooks("PI script").Sheets(1).Range("B" & lastOpenBRow).Value = N
+Workbooks("PI script").Sheets(1).Range("C" & lastOpenCRow).Value = Ppk1
+
+End Sub
