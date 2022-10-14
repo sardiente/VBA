@@ -1,0 +1,203 @@
+Sub Product_FW()
+ 
+Dim i, j, k, LastRow, Final_Row_Count As Long
+Dim exists_1, exists_2 As Boolean
+Dim Last_Open_FW_Row, Last_Open_Date_Row, Last_Open_State_Row, Last_Open_Pos_Row As Long
+Dim last_FW_Row, total_FW, Final_FW As Long
+Dim ws As Worksheet
+Dim wb As Workbook
+Dim timestamp, date_time, APR_year, raw_datetime, raw_date As String
+
+'This VBA script sorts 4000 - 5000 fill weight values of a particular liquid 
+ 
+Set wb = ActiveWorkbook
+Set ws1 = wb.Sheets(1)
+ 
+'Checking if correct file is being used
+If ws1.Range("A1").Value = "generated" And ws1.Range("B1").Value = "MyDate" And ws1.Range("C1").Value = "Position" And ws1.Range("D1").Value = "Tare" And ws1.Range("E1").Value = "Gross" And ws1.Range("F1").Value = "Net" And ws1.Range("G1").Value = "State" Then
+    'continue
+Else
+    MsgBox "The Product_FW macro does not work with this file type.", vbCritical
+    Exit Sub
+End If
+ 
+Application.DisplayAlerts = False
+Application.ScreenUpdating = False
+ 
+'Deleting extra sheets that are not the first one
+For Each ws In Application.ActiveWorkbook.Worksheets
+    If ws.Name <> "Sheet1" Then
+        ws.Delete
+    ElseIf Application.Sheets.Count = 1 And ws.Name <> "Sheet1" Then
+        MsgBox ("Please confirm the file is correct. Rename sheet to 'Sheet1'")
+        Exit Sub
+    End If
+Next ws
+ 
+Application.DisplayAlerts = True
+ 
+'Asking user for APR year to append to parameter name
+APR_year = Application.InputBox("Please enter APR year." & vbNewLine & vbNewLine & "Use Format: '20xx'")
+year_part = Application.InputBox("Please enter what number part of the year you would like to include this lot. For example: The first 10 lots of this APR year should be included in part '1', the next 10 lots of this APR year should be included in part '2'." & vbNewLine & vbNewLine & "Use Format: '1', '2'")
+ 
+ws1.Range("A1").Select
+Sheets.Add(After:=Sheets(1)).Name = "Sheet2"
+ 
+Set ws2 = wb.Sheets("Sheet2")
+ 
+'Setting up Sheet 2 where all the data will be combined
+ws2.Range("A1").Value = "Date"
+ws2.Range("B1").Value = "Position"
+ws2.Range("C1").Value = "FW"
+ws2.Range("D1").Value = "Status"
+ws2.Range("E1").Value = "FW_rounded"
+ws2.Range("F1").Value = "2nd_lot"
+ws2.Range("G1").Value = "DoM"
+ 
+'Working with table
+ws1.Select
+Set tb1 = ws1.ListObjects(1)
+tb1.AutoFilter.ShowAllData
+ 
+'Determining the SKU
+Set FW_Col_avg = tb1.ListColumns("Net").DataBodyRange
+FW_avg = Application.Average(FW_Col_avg)
+ 
+If FW_avg > 0.6 And FW_avg < 0.8 Then
+    mcg = 'value'
+ElseIf FW_avg > 0.3 And FW_avg < 0.5 Then
+    mcg = 'value'
+ElseIf FW_avg > 1.1 And FW_avg < 1.3 Then
+    mcg = 'value'
+Else:
+    MsgBox ("Please check the data and try again")
+    Exit Sub
+End If
+ 
+last_FW_Row = tb1.Range.Rows.Count
+total_FW = lastFWrow - 1
+ 
+'Changing Table Filters and copying/pasting data to Sheet 2
+For i = 1 To 8
+    Last_Open_FW_Row = ws2.Cells(Rows.Count, 3).End(xlUp).Row + 1
+    Last_Open_Date_Row = ws2.Cells(Rows.Count, 1).End(xlUp).Row + 1
+    Last_Open_State_Row = ws2.Cells(Rows.Count, 4).End(xlUp).Row + 1
+    Last_Open_Pos_Row = ws2.Cells(Rows.Count, 2).End(xlUp).Row + 1
+   
+    tb1.Range.AutoFilter Field:=3, Criteria1:=i
+    Set FW_Col = tb1.ListColumns("Net").DataBodyRange
+    Set T_Col = tb1.ListColumns("MyDate").DataBodyRange
+    Set D_Col = tb1.ListColumns("generated").DataBodyRange
+    Set ST_Col = tb1.ListColumns("State").DataBodyRange
+   
+    num_FW = ws1.AutoFilter.Range.Columns(6).SpecialCells(xlCellTypeVisible).Count - 1
+    FW_Col.SpecialCells(xlCellTypeVisible).Copy
+    ws2.Range("C" & Last_Open_FW_Row).PasteSpecial xlPasteValues
+    T_Col.SpecialCells(xlCellTypeVisible).Copy
+    ws2.Range("A" & Last_Open_Date_Row).PasteSpecial xlAll
+    ST_Col.SpecialCells(xlCellTypeVisible).Copy
+    ws2.Range("D" & Last_Open_State_Row).PasteSpecial xlPasteValues
+   
+    Updated_Open_FW_Row = ws2.Cells(Rows.Count, 3).End(xlUp).Row + 1
+    ws2.Range("B" & Last_Open_Pos_Row, "B" & Updated_Open_FW_Row - 1).Value = i
+   
+    ws2.Select
+Next i
+ 
+tb1.AutoFilter.ShowAllData
+ws2.Columns("A:D").AutoFit
+ 
+'Sheet 2 delete filling errors and add Date Column
+LastRow = ws2.Cells(Rows.Count, 4).End(xlUp).Row
+ 
+ 
+timestamp = Split(ws2.Range("A2").Value, " ")
+date_time = timestamp(0)
+ws2.Range("G2").Value = date_time
+ 
+j = 0
+For i = LastRow To 2 Step -1
+    If ws2.Range("D" & i).Value = "Errore riempimento" Then
+        j = j + 1
+        ws2.Rows(i).Delete
+    End If
+Next i
+ 
+'MsgBox ("There were " & j & " filling errors removed from the XML file.")
+ 
+'Sheet 2 data formatting
+LastRow = ws2.Cells(Rows.Count, 3).End(xlUp).Row
+ 
+For k = 2 To LastRow
+    ws2.Range("E" & k).Value = Round(ws2.Range("C" & k).Value, 3)
+    raw_datetime = Split(ws2.Range("A" & k).Value)
+    raw_date = raw_datetime(1)
+    ws2.Range("F" & k).Value = raw_date & "_" & ws2.Range("B" & k).Value
+Next k
+ 
+ws2.Columns("E:G").AutoFit
+ws2.Columns("A:D").Delete
+ 
+'MsgBox ("There were " & j & " rows deleted")
+ 
+Final_Row_Count = ws2.Cells(Rows.Count, 1).End(xlUp).Row
+Final_FW = Final_Row_Count - 1
+ 
+Parts = Application.WorksheetFunction.RoundUp(Final_Row_Count / 1000, 0)
+ 
+B = 0
+For p = 1 To Parts 'Parts is # of DPC sheets (fill weight values divided by 999)
+    wb.Sheets.Add(After:=wb.Sheets(wb.Sheets.Count)).Name = "DPC" & "_" & p
+    Set wsd = wb.Sheets("DPC" & "_" & p)
+   
+    For a = 2 To 1000
+        wsd.Range("S" & a - 1).Value = ws2.Range("A" & a + B).Value
+        wsd.Range("T" & a - 1).Value = ws2.Range("A" & a + B).Value
+        wsd.Range("F" & a - 1).Value = ws2.Range("B" & a + B).Value
+        wsd.Range("M" & a - 1).Value = "Fill Weight (" & mcg & " mcg)_" & APR_year & "_" & year_part
+       
+    Next a
+ 
+B = B + 999 'secret sauce
+ 
+Last_DPC_Row = wsd.Cells(Rows.Count, 19).End(xlUp).Row
+wsd.Range("A1", "A" & Last_DPC_Row).Value = "CMO Site MBR"
+wsd.Range("B1", "B" & Last_DPC_Row).Value = "Product"
+wsd.Range("C1", "C" & Last_DPC_Row).Value = "CMO SITE"
+wsd.Range("D1", "D" & Last_DPC_Row).Value = "COMMMERCIAL"
+wsd.Range("E1", "E" & Last_DPC_Row).Value = "COMMERCIAL"
+wsd.Range("L1", "L" & Last_DPC_Row).Value = "PRODUCT_CMO_FILLING"
+'wsd.Range("M1", "M" & Last_DPC_Row).Value = "Fill Weight (" & mcg & " mcg)"
+wsd.Range("U1", "U" & Last_DPC_Row).Value = "g"
+ 
+With wsd.Range("G1", "G" & Last_DPC_Row)
+    .NumberFormat = "@"
+    .Value = Left(wb.Name, 10)
+End With
+ 
+With wsd.Range("H1", "H" & Last_DPC_Row)
+    .NumberFormat = "@"
+    .Value = Format(ws2.Range("C2"), "mm/dd/yyyy")
+End With
+ 
+With wsd.Range("J1", "J" & Last_DPC_Row)
+    .NumberFormat = "@"
+    .Value = Format(ws2.Range("C2"), "mm/dd/yyyy")
+End With
+ 
+With wsd.Range("K1", "K" & Last_DPC_Row)
+    .NumberFormat = "@"
+    .Value = Format(ws2.Range("C2"), "mm/dd/yyyy")
+End With
+'wsd.Range("K1", "K" & Last_DPC_Row).Value = ws2.Range("C2").Value
+'disposition_date = Application.InputBox("What is the disposition date in MM/DD/YYYY")
+'wsd.Range("I1", "I" & Last_DPC_Row).Value = disposition_date
+ 
+wsd.Columns("A:U").NumberFormat = "@"
+wsd.Columns("A:M").AutoFit
+Next p
+ 
+ws2.Visible = False
+Application.ScreenUpdating = True
+
+End Sub
