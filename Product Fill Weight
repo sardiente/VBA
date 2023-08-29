@@ -8,7 +8,8 @@ Dim ws As Worksheet
 Dim wb As Workbook
 Dim timestamp, date_time, APR_year, raw_datetime, raw_date As String
 
-'This VBA script sorts 4000 - 5000 fill weight values of a particular liquid 
+'''This VBA script sorts multiple sheets of 4000 - 5000 exported fill weight values from drug product manufacturing of a particular liquid drug product, removes irrelevant data, performs data wrangling, and reformats data'''
+''''into a specific organization to imported into local data storage for Continued Process Verification''' 
  
 Set wb = ActiveWorkbook
 Set ws1 = wb.Sheets(1)
