@@ -1,14 +1,15 @@
 Sub FileManipulation()
 
-'VBA Script loops through folder of csv files of clinical data fill weights downloaded via PI Historian with the help of Seeq Python Module, 
-'removes all values zero and less than zero and calculates Process Capability of each separate drug product fill
-
 Dim FileName, FolderPath As String
 Dim wb As Workbook
 Dim data, data2 As Worksheet
 Dim LastRow1, LastRow2, LastRow2i, A, dataCount, data2Count, Ctotal, x, SD, i, Ppk1, P1, P2, Ppk2_Numerator, LastBRow As Long
 'Dim wb, wb1 As Workbook
 Dim lastOpenARow, lastOpenBRow, lastOpenCRow As Long
+
+'''VBA Script loops through folder of csv files containing hundreds clinical data fill weights downloaded via PI Historian with the help of Seeq Python Module, '''
+'''removes all values zero and less than zero and calculates Process Capability of each separate drug product fill. This is performed on a monthly basis to report'''
+'''to Drug Prodct Team leads for Continued Process Verification'''
 
 FolderPath = "C:\Users\Username\Location\\"
 FileName = Dir(FolderPath & "*csv.")
